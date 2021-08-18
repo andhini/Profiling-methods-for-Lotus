@@ -1,0 +1,127 @@
+Installation of Cube, score-P, Scalasca in https://www.youtube.com/watch?v=3jxScVQ2QeA&ab_channel=POPHPC
+results review in :
+https://scorepci.pages.jsc.fz-juelich.de/scorep-pipelines/docs/scorep-6.0/html/instrumentation.html
+https://www.youtube.com/watch?v=GViNLsfrJ1U&list=PLDPdSvR_5-GgOV7MDtvP2pzL29RRrMUqn&index=9&ab_channel=POPHPC
+
+Installers:
+CubeBundle4.x: https://www.scalasca.org/scalasca/software/cube-4.x/download.html
+Score-P : https://www.vi-hps.org/projects/score-p/
+Scalasca : https://www.scalasca.org/scalasca/software/scalasca-2.x
+
+Each must be installed in sequence: CubeBundle->Score-P->Scalasca with following commands:
+1. Download Cube-4.*.tar.gz, & go to the download directory. (mine is Cube-4.6)
+2. In terminal:
+	      > tar -zxf Cube-4.6.tar.gz
+	      >./configure --previx=/opt/local/Cube-4.6
+	      > make
+	      > sudo make install
+        > export PATH=/opt/local/Cube-4.6/bin:${PATH}
+3. Download Score-P tar & go to download directory
+	      > tar -zxf scorep-7.0.tar.gz
+        > ./configure --prefix=/opt/local/ScoreP-7.0  
+          (pay attention if your mpi isn't openmpi, use other flag)
+        > make
+        > sudo make install
+        > export PATH=/opt/local/ScoreP-7.0/bin:${PATH}
+4. Download Scalasca tar & go to download directory
+        > tar -zxf scalasca-2.6.tar.gz
+        > ./configure --prefix=/opt/local/Scalasca-2.6
+	        (pay attention if your mpi isn't openmpi, use other flag)
+        > make
+        > sudo make install
+        > export PATH=/opt/local/Scalasca-2.6/bin:${PATH}
+
+How to run score-P instrument for simple C code: https://www.youtube.com/watch?v=wQAGK7WgwXk&ab_channel=POPHPC 
+
+How to added instrument in Lotus solver
+1. in ~./profile, add this in PATH 
+   /opt/local/ScoreP-7.0/bin:/opt/local/Cube-4.6/bin:/opt/local/Scalasca-2.6/bin:
+2. in ~/solver/oop/bin, copy 'runLotus' to 'runLotus_scalasca' and modify just 'runLotus_scalasca'. 
+   change:     time mpirun ...
+   into  :     time scan mpirun ...
+3. in ~/solver/oop, copy 'Makefile' to 'Makefile_original' and modify only 'Makefile'.
+   change compiler : 
+        ifeq ($(MPI),true)
+	      FC = mpif90 -cpp -DMPION
+	      else
+	      FC = $(F90) -cpp
+	      endif
+   into            : 
+        ifeq ($(MPI),true)
+	      FC = scorep mpif90 -cpp -DMPION
+	      else
+	      FC = scorep $(F90) -cpp
+	      endif
+4. Try to run using 'screen' in the PC to avoid out-of-memmory error (https://medium.com/analytics-vidhya/ubuntu-screen-run-terminal-processes-in-the-background-495baaa1d138)
+   > screen
+   Back to the project directory, run lotus as: 
+   > runLotus_scalasca 8 test1 
+   Commands S=C=A=N will appear before running.
+5. Results of scorep is in test1 folde names 'scorep...'
+6. To score or see the results in ubuntu terminal, type:
+   > export PATH=/opt/local/Scalasca-2.6/bin:/opt/local/ScoreP-7.0/bin:/opt/local/Cube-4.6/bin:${PATH}
+   > square -s scorep_lotus*
+   > head -25 scorep_lotus*/scorep.score 
+   or, similar to this command:
+   > scorep-score -r profile.cubex
+
+	Example results (for Viewing Region Profile ):
+  
+	Estimated aggregate size of event trace:                   1481MB
+	Estimated requirements for largest trace buffer (max_buf): 186MB
+	Estimated memory requirements (SCOREP_TOTAL_MEMORY):       188MB
+	(hint: When tracing set SCOREP_TOTAL_MEMORY=188MB to avoid intermediate flushes
+ 	or reduce requirements using USR regions filters.)
+
+	flt     type  max_buf[B]     visits time[s] time[%] time/visit[us]  region
+         	ALL 194,107,043 21,070,880 6905.13   100.0         327.71  ALL
+         	MPI 194,107,002 21,070,872 1718.37    24.9          81.55  MPI
+      	     SCOREP          41          8 5186.76    75.1   648345472.55  SCOREP
+
+         	MPI  83,986,668  7,722,912   21.75     0.3           2.82  MPI_Irecv
+         	MPI  83,986,668  7,722,912   23.19     0.3           3.00  MPI_Isend
+         	MPI  14,549,106  1,763,528   59.57     0.9          33.78  MPI_Allreduce
+         	MPI  11,584,368  3,861,456 1612.59    23.4         417.61  MPI_Waitall
+         	MPI          48         16    0.00     0.0           0.45  MPI_Cart_shift
+      	     SCOREP          41          8 5186.76    75.1   648345472.55  lotus
+         	MPI          24          8    0.00     0.0           0.54  MPI_Cart_coords
+         	MPI          24          8    0.00     0.0         244.78  MPI_Cart_create
+         	MPI          24          8    0.00     0.0           0.90  MPI_Comm_rank
+         	MPI          24          8    0.00     0.0           1.55  MPI_Comm_size
+         	MPI          24          8    1.04     0.0      129718.88  MPI_Finalize
+         	MPI          24          8    0.21     0.0       26627.25  MPI_Init
+
+    > scorep-score -r profile.cubex | awk 'NF >= 7 && $5 >= 10.0 {print $0}'
+
+       Example results (for Find Hot Regions (> 10% of time)):
+       
+	Estimated aggregate size of event trace:                   1481MB
+	Estimated requirements for largest trace buffer (max_buf): 186MB
+	(hint: When tracing set SCOREP_TOTAL_MEMORY=188MB to avoid intermediate flushes
+	 or reduce requirements using USR regions filters.)
+	flt     type  max_buf[B]     visits time[s] time[%] time/visit[us]  region
+         	ALL 194,107,043 21,070,880 6905.13   100.0         327.71  ALL
+         	MPI 194,107,002 21,070,872 1718.37    24.9          81.55  MPI
+      	     SCOREP          41          8 5186.76    75.1   648345472.55  SCOREP
+         	MPI  11,584,368  3,861,456 1612.59    23.4         417.61  MPI_Waitall
+      	     SCOREP          41          8 5186.76    75.1   648345472.55  lotus
+
+
+     > square scorep.* (* is your scorep folder name. the folder result opened in cube GUI)
+
+7. Tracing using scorep (see:https://www.olcf.ornl.gov/wp-content/uploads/2019/08/5_scalasca_day_1.pdf)
+
+     1) from previous corep folder file, type in terminal : > scalasca -examine -s scorep.*
+     2) > head score.*/scorep.score
+     3) find the Estimated memory requirements (SCOREP_TOTAL_MEMORY): xx MB 
+     4) In runLotus_scalasca, change:
+        time scan mpirun...
+        into:
+        time scalasca -analyze -q -t mpirun
+     5) Add in  xx + ~10% extra before command in 4)
+        export SCOREP_TOTAL_MEMORY=xxMB
+       
+        
+
+
+ 
