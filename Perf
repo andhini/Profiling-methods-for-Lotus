@@ -1,0 +1,13 @@
+Perf commands in: https://www.brendangregg.com/perf.html
+
+1. install perf in ubuntu
+2. copy /solver/oop/bin/runLotus to runLotus_perf. modify only runLotus_perf
+3. change:     time mpirun ...
+   into  :     time perf record -F 99 mpirun ...
+   change 99 hertz into 49 hertz for coarser recording 
+4. If root complain about 'perf_even_paranoid...' during runLotus command, type:
+   > sudo sh -c 'echo 1 >/proc/sys/kernel/perf_event_paranoid'
+5. running lotus with perf:
+   > runLotus_perf 8 test1
+6. For results, go to your lotus result folder, type in terminal:
+  > perf report
