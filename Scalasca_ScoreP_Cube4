@@ -52,7 +52,8 @@ How to added instrument in Lotus solver
 	      else
 	      FC = scorep $(F90) -cpp
 	      endif
-4. Try to run using 'screen' in the PC to avoid out-of-memmory error (https://medium.com/analytics-vidhya/ubuntu-screen-run-terminal-processes-in-the-background-495baaa1d138)
+4. At the top of Lotus script, add this command as a bridge between c and fortran: #include "scorep/SCOREP_User.inc"
+   Try to run using 'screen' in the PC to avoid out-of-memmory error (https://medium.com/analytics-vidhya/ubuntu-screen-run-terminal-processes-in-the-background-495baaa1d138)
    > screen
    Back to the project directory, run lotus as: 
    > runLotus_scalasca 8 test1 
